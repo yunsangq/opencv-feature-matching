@@ -1,4 +1,3 @@
-
 #include <opencv2\core\core.hpp>
 #include <opencv2\highgui\highgui.hpp>
 #include <opencv2\imgproc\imgproc.hpp>
@@ -86,22 +85,22 @@ Point2f world_to_cam_to_pixel(double w[], Mat R, Mat tvec) {
 void makecube(Mat& input, vector<Point2f> corner_pts2) {
 	vector<Point3f> objectCorners;
 	Mat R, rvec, tvec;
+	objectCorners.push_back(Point3f(0.0f, 7.9f, 0.0f));
 	objectCorners.push_back(Point3f(0.0f, 0.0f, 0.0f));
-	objectCorners.push_back(Point3f(7.9f, 0.0f, 0.0f));
-	objectCorners.push_back(Point3f(7.9f, 8.9f, 0.0f));
-	objectCorners.push_back(Point3f(0.0f, 8.9f, 0.0f));
+	objectCorners.push_back(Point3f(8.9f, 0.0f, 0.0f));
+	objectCorners.push_back(Point3f(8.9f, 7.9f, 0.0f));
 	solvePnP(objectCorners, corner_pts2, cameraMatrix, distCoeffs, rvec, tvec);
 	Rodrigues(rvec, R);
 
-	double w0[] = { 0,0,0 };
-	double w1[] = { 7.9,0.0,0.0 };
-	double w2[] = { 7.9,8.9,0.0 };
-	double w3[] = { 0.0,8.9,0.0 };
+	double w0[] = { 0,7.9,0 };
+	double w1[] = { 0,0,0 };
+	double w2[] = { 8.9,0,0 };
+	double w3[] = { 8.9,7.9,0 };
 
-	double w4[] = { 0,0,8.0 };
-	double w5[] = { 7.9,0.0,8.0 };
-	double w6[] = { 7.9,8.9,8.0 };
-	double w7[] = { 0.0,8.9,8.0 };
+	double w4[] = { 0,7.9,8.0 };
+	double w5[] = { 0,0,8.0 };
+	double w6[] = { 8.9,0,8.0 };
+	double w7[] = { 8.9,7.9,8.0 };
 
 	Point2f p0 = world_to_cam_to_pixel(w0, R, tvec);
 	Point2f p1 = world_to_cam_to_pixel(w1, R, tvec);
@@ -552,7 +551,7 @@ void method5(VideoCapture vc, Mat model_image, Mat descimg1, vector<KeyPoint> ke
 				Mat result;
 				cv::drawMatches(model_image, keyimg1, input, keyimg2, m_Matches, result);
 
-				cv::imshow("croos-check + inlier + ransac", result);
+				cv::imshow("backward-check + inlier + ransac", result);
 			}
 		}
 		catch (Exception& e)
@@ -824,7 +823,7 @@ void method8(VideoCapture vc, Mat model_image, Mat descimg1, vector<KeyPoint> ke
 				Mat result;
 				cv::drawMatches(model_image, keyimg1, input, keyimg2, m_Matches, result);
 
-				cv::imshow("ORB croos-check + inlier + ransac", result);
+				cv::imshow("ORB backward-check + inlier + ransac", result);
 			}
 		}
 		catch (Exception& e)
@@ -849,39 +848,39 @@ int main() {
 	Mat descimg1;
 	b->detectAndCompute(model_image, Mat(), keyimg1, descimg1);
 
-	Ptr<Feature2D> orb_b = BRISK::create();
+	Ptr<Feature2D> orb_b = ORB::create();
 	vector<KeyPoint> orb_keyimg1;
 	Mat orb_descimg1;
-	b->detectAndCompute(model_image, Mat(), orb_keyimg1, orb_descimg1);
+	orb_b->detectAndCompute(model_image, Mat(), orb_keyimg1, orb_descimg1);
 
 	//BRISK
 	// all + ransac
-	//thread t1(&method1, vc, model_image, descimg1, keyimg1);
+	thread t1(&method1, vc, model_image, descimg1, keyimg1);
 	// 30-best + ransac
-	//thread t2(&method2, vc, model_image, descimg1, keyimg1);
+	thread t2(&method2, vc, model_image, descimg1, keyimg1);
 	// 30-best + inlier + ransac
-	//thread t3(&method3, vc, model_image, descimg1, keyimg1);
+	thread t3(&method3, vc, model_image, descimg1, keyimg1);
 	// ratio test + inlier + ransac
-	//thread t4(&method4, vc, model_image, descimg1, keyimg1);
-	// croos-check + inlier + ransac
-	//thread t5(&method5, vc, model_image, descimg1, keyimg1);
+	thread t4(&method4, vc, model_image, descimg1, keyimg1);
+	// backward-check + inlier + ransac
+	thread t5(&method5, vc, model_image, descimg1, keyimg1);
 
 	//ORB
 	// 30-best + inlier + ransac
 	thread t6(&method6, vc, model_image, orb_descimg1, orb_keyimg1);
 	// ratio test + inlier + ransac
-	//thread t7(&method7, vc, model_image, orb_descimg1, orb_keyimg1);
-	// croos-check + inlier + ransac
-	//thread t8(&method8, vc, model_image, orb_descimg1, orb_keyimg1);
+	thread t7(&method7, vc, model_image, orb_descimg1, orb_keyimg1);
+	// backward-check + inlier + ransac
+	thread t8(&method8, vc, model_image, orb_descimg1, orb_keyimg1);
 
 
-	//t1.join();
-	//t2.join();
-	//t3.join();
-	//t4.join();
-	//t5.join();
+	t1.join();
+	t2.join();
+	t3.join();
+	t4.join();
+	t5.join();
 	t6.join();
-	//t7.join();
-	//t8.join();
+	t7.join();
+	t8.join();
 	return 0;
 }
